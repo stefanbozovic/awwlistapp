@@ -6,14 +6,79 @@
 	objectVersion = 90;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		60EEC51430464A0D002DAF7D /* AwwListShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 60EEC50A30464A0D002DAF7D /* AwwListShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		60EEC51230464A0D002DAF7D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 000000000000000000000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 60EEC50930464A0D002DAF7D;
+			remoteInfo = AwwList;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		60EEC51530464A0D002DAF7D /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			dstPath = "";
+			dstSubfolder = PlugIns;
+			files = (
+				60EEC51430464A0D002DAF7D /* AwwListShareExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
-		000000000000000000000120 /* Wishmory.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Wishmory.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		000000000000000000000120 /* AwwList.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AwwList.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		60956E2B30454C5B009798B2 /* Wishlistia.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Wishlistia.entitlements; sourceTree = "<group>"; };
+		60EEC50A30464A0D002DAF7D /* AwwListShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AwwListShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		60A8E6583041EB8200BE9B8E /* Exceptions for "Wishmory" folder in "Wishlistia" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 000000000000000100000000 /* Wishlistia */;
+		};
+		60EEC51930464A0D002DAF7D /* Exceptions for "AwwList" folder in "AwwListShareExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+				ShareExtension.swift,
+			);
+			target = 60EEC50930464A0D002DAF7D /* AwwListShareExtension */;
+		};
+		60EEC51A30464A41002DAF7D /* Exceptions for "AwwList" folder in "Wishlistia" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				ShareExtension.swift,
+			);
+			target = 000000000000000100000000 /* Wishlistia */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		000000000000000000000010 /* Wishmory */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				60A8E6583041EB8200BE9B8E /* Exceptions for "Wishmory" folder in "Wishlistia" target */,
+			);
 			path = Wishmory;
+			sourceTree = "<group>";
+		};
+		60EEC50B30464A0D002DAF7D /* AwwList */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				60EEC51A30464A41002DAF7D /* Exceptions for "AwwList" folder in "Wishlistia" target */,
+				60EEC51930464A0D002DAF7D /* Exceptions for "AwwList" folder in "AwwListShareExtension" target */,
+			);
+			path = AwwList;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -24,13 +89,20 @@
 			files = (
 			);
 		};
+		60EEC50730464A0D002DAF7D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		000000000000000000000001 = {
 			isa = PBXGroup;
 			children = (
+				60956E2B30454C5B009798B2 /* Wishlistia.entitlements */,
 				000000000000000000000010 /* Wishmory */,
+				60EEC50B30464A0D002DAF7D /* AwwList */,
 				000000000000000000000020 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -38,7 +110,8 @@
 		000000000000000000000020 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				000000000000000000000120 /* Wishmory.app */,
+				000000000000000000000120 /* AwwList.app */,
+				60EEC50A30464A0D002DAF7D /* AwwListShareExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -46,23 +119,45 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		000000000000000100000000 /* Wishmory */ = {
+		000000000000000100000000 /* Wishlistia */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 000000000000000110000000 /* Build configuration list for PBXNativeTarget "Wishmory" */;
+			buildConfigurationList = 000000000000000110000000 /* Build configuration list for PBXNativeTarget "Wishlistia" */;
 			buildPhases = (
 				000000000000000120000000 /* Sources */,
 				000000000000000130000000 /* Frameworks */,
 				000000000000000140000000 /* Resources */,
+				60EEC51530464A0D002DAF7D /* Embed Foundation Extensions */,
 			);
 			buildRules = (
+			);
+			dependencies = (
+				60EEC51330464A0D002DAF7D /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				000000000000000000000010 /* Wishmory */,
 			);
-			name = Wishmory;
-			productName = MyApp;
-			productReference = 000000000000000000000120 /* Wishmory.app */;
+			name = Wishlistia;
+			productName = "My Little Wishes";
+			productReference = 000000000000000000000120 /* AwwList.app */;
 			productType = "com.apple.product-type.application";
+		};
+		60EEC50930464A0D002DAF7D /* AwwListShareExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 60EEC51830464A0D002DAF7D /* Build configuration list for PBXNativeTarget "AwwListShareExtension" */;
+			buildPhases = (
+				60EEC50630464A0D002DAF7D /* Sources */,
+				60EEC50730464A0D002DAF7D /* Frameworks */,
+				60EEC50830464A0D002DAF7D /* Resources */,
+			);
+			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				60EEC50B30464A0D002DAF7D /* AwwList */,
+			);
+			name = AwwListShareExtension;
+			productName = AwwList;
+			productReference = 60EEC50A30464A0D002DAF7D /* AwwListShareExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -71,11 +166,14 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2630;
+				LastSwiftUpdateCheck = 2700;
 				LastUpgradeCheck = 2700;
 				TargetAttributes = {
 					000000000000000100000000 = {
 						CreatedOnToolsVersion = 26.3;
+					};
+					60EEC50930464A0D002DAF7D = {
+						CreatedOnToolsVersion = 27.0;
 					};
 				};
 			};
@@ -93,13 +191,19 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				000000000000000100000000 /* Wishmory */,
+				000000000000000100000000 /* Wishlistia */,
+				60EEC50930464A0D002DAF7D /* AwwListShareExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		000000000000000140000000 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		60EEC50830464A0D002DAF7D /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
 			);
@@ -112,7 +216,20 @@
 			files = (
 			);
 		};
+		60EEC50630464A0D002DAF7D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		60EEC51330464A0D002DAF7D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 60EEC50930464A0D002DAF7D /* AwwListShareExtension */;
+			targetProxy = 60EEC51230464A0D002DAF7D /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		000000000000000011000000 /* Debug configuration for PBXProject "Wishmory" */ = {
@@ -170,7 +287,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MACOSX_DEPLOYMENT_TARGET = 27.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
@@ -234,7 +351,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MACOSX_DEPLOYMENT_TARGET = 27.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
@@ -247,18 +364,24 @@
 			};
 			name = Release;
 		};
-		000000000000000111000000 /* Debug configuration for PBXNativeTarget "Wishmory" */ = {
+		000000000000000111000000 /* Debug configuration for PBXNativeTarget "Wishlistia" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGN_ENTITLEMENTS = Wishlistia.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = YZXY7AL2JS;
 				ENABLE_APP_SANDBOX = YES;
+				ENABLE_ENHANCED_SECURITY = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Wishmory;
+				INFOPLIST_FILE = Wishmory/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = AwwList;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSCameraUsageDescription = "AwwList uses the camera to add photos to gift ideas and wishes.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -269,36 +392,43 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.6;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).$(PRODUCT_NAME:rfc1034identifier)";
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.stefanbozovic.awwlist;
+				PRODUCT_NAME = AwwList;
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
-		000000000000000112000000 /* Release configuration for PBXNativeTarget "Wishmory" */ = {
+		000000000000000112000000 /* Release configuration for PBXNativeTarget "Wishlistia" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGN_ENTITLEMENTS = Wishlistia.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = YZXY7AL2JS;
 				ENABLE_APP_SANDBOX = YES;
+				ENABLE_ENHANCED_SECURITY = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = Wishmory;
+				INFOPLIST_FILE = Wishmory/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = AwwList;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSCameraUsageDescription = "AwwList uses the camera to add photos to gift ideas and wishes.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -309,21 +439,89 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.6;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "devplaceholder.$(PROJECT_UNIQUE_VALUE:identifier).$(PRODUCT_NAME:rfc1034identifier)";
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.stefanbozovic.awwlist;
+				PRODUCT_NAME = AwwList;
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		60EEC51630464A0D002DAF7D /* Debug configuration for PBXNativeTarget "AwwListShareExtension" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = AwwList/AwwList.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = YZXY7AL2JS;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = AwwList/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = AwwListShareExtension;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				NEW_SETTING = "";
+				PRODUCT_BUNDLE_IDENTIFIER = com.stefanbozovic.awwlist.ShareExtension;
+				PRODUCT_NAME = AwwListShareExtension;
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		60EEC51730464A0D002DAF7D /* Release configuration for PBXNativeTarget "AwwListShareExtension" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = AwwList/AwwList.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = YZXY7AL2JS;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = AwwList/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = AwwListShareExtension;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				NEW_SETTING = "";
+				PRODUCT_BUNDLE_IDENTIFIER = com.stefanbozovic.awwlist.ShareExtension;
+				PRODUCT_NAME = AwwListShareExtension;
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
 		};
@@ -338,11 +536,19 @@
 			);
 			defaultConfigurationName = Release;
 		};
-		000000000000000110000000 /* Build configuration list for PBXNativeTarget "Wishmory" */ = {
+		000000000000000110000000 /* Build configuration list for PBXNativeTarget "Wishlistia" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				000000000000000111000000 /* Debug configuration for PBXNativeTarget "Wishmory" */,
-				000000000000000112000000 /* Release configuration for PBXNativeTarget "Wishmory" */,
+				000000000000000111000000 /* Debug configuration for PBXNativeTarget "Wishlistia" */,
+				000000000000000112000000 /* Release configuration for PBXNativeTarget "Wishlistia" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		60EEC51830464A0D002DAF7D /* Build configuration list for PBXNativeTarget "AwwListShareExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				60EEC51630464A0D002DAF7D /* Debug configuration for PBXNativeTarget "AwwListShareExtension" */,
+				60EEC51730464A0D002DAF7D /* Release configuration for PBXNativeTarget "AwwListShareExtension" */,
 			);
 			defaultConfigurationName = Release;
 		};
