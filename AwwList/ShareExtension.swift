@@ -1,10 +1,3 @@
-//
-//  ShareExtension.swift
-//  Wishlistia
-//
-//  Created by Stefan Bozovic on 31.08.2026.
-//
-
 import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
@@ -17,33 +10,29 @@ private enum SharedAwwListBridge {
         let isOwner: Bool
     }
 
+    struct SharedAttachment: Codable, Hashable {
+        let filename: String
+        let contentType: String
+        let kind: String
+        let relativePath: String?
+    }
+
     struct PendingShare: Codable, Identifiable {
         let id: UUID
         let text: String
+        let note: String
         let urlString: String?
+        let attachment: SharedAttachment?
         let recipientIDs: [UUID]
         let created: Date
     }
 
     private static let peopleKey = "AwwList.sharedPeople.v1"
     private static let pendingKey = "AwwList.pendingShares.v1"
-
-    static var appGroupID: String? {
-        if let configured = Bundle.main.object(forInfoDictionaryKey: "AwwListAppGroup") as? String,
-           !configured.isEmpty {
-            return configured
-        }
-
-        guard var bundleID = Bundle.main.bundleIdentifier, !bundleID.isEmpty else { return nil }
-        if bundleID.hasSuffix(".ShareExtension") {
-            bundleID.removeLast(".ShareExtension".count)
-        }
-        return "group.\(bundleID)"
-    }
+    private static let appGroupID = "group.com.stefanbozovic.awwlist"
 
     private static var defaults: UserDefaults? {
-        guard let appGroupID, !appGroupID.isEmpty else { return nil }
-        return UserDefaults(suiteName: appGroupID)
+        UserDefaults(suiteName: appGroupID)
     }
 
     static func people() -> [PersonSnapshot] {
@@ -52,48 +41,98 @@ private enum SharedAwwListBridge {
             return []
         }
 
-        return people.sorted { first, second in
-            if first.isOwner != second.isOwner { return first.isOwner }
-            return first.name.localizedCaseInsensitiveCompare(second.name) == .orderedAscending
+        return people.sorted {
+            $0.isOwner != $1.isOwner
+                ? $0.isOwner
+                : $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
         }
     }
 
     static func enqueue(
         text: String,
+        note: String,
         url: URL?,
+        attachment: SharedAttachment?,
         recipientIDs: Set<UUID>
     ) -> Bool {
         guard let defaults, !recipientIDs.isEmpty else { return false }
 
-        let pending = PendingShare(
-            id: UUID(),
-            text: text,
-            urlString: url?.absoluteString,
-            recipientIDs: Array(recipientIDs),
-            created: .now
-        )
-
         var queue: [PendingShare] = []
-        if let existing = defaults.data(forKey: pendingKey),
-           let decoded = try? JSONDecoder().decode([PendingShare].self, from: existing) {
-            queue = decoded
+        if let existing = defaults.data(forKey: pendingKey) {
+            queue = (try? JSONDecoder().decode([PendingShare].self, from: existing)) ?? []
         }
 
-        queue.append(pending)
+        queue.append(
+            PendingShare(
+                id: UUID(),
+                text: text,
+                note: note,
+                urlString: url?.absoluteString,
+                attachment: attachment,
+                recipientIDs: Array(recipientIDs),
+                created: .now
+            )
+        )
+
         guard let encoded = try? JSONEncoder().encode(queue) else { return false }
         defaults.set(encoded, forKey: pendingKey)
-        return defaults.synchronize()
+        defaults.synchronize()
+        return defaults.data(forKey: pendingKey) == encoded
+    }
+
+    static func persistFile(
+        from sourceURL: URL,
+        type: UTType
+    ) -> SharedAttachment? {
+        guard let container = FileManager.default.containerURL(
+            forSecurityApplicationGroupIdentifier: appGroupID
+        ) else {
+            return nil
+        }
+
+        let directory = container.appendingPathComponent("SharedAttachments", isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(
+                at: directory,
+                withIntermediateDirectories: true
+            )
+
+            let originalName = sourceURL.lastPathComponent.isEmpty
+                ? "Shared file"
+                : sourceURL.lastPathComponent
+            let destinationName = "\(UUID().uuidString)-\(originalName)"
+            let destination = directory.appendingPathComponent(destinationName)
+            try FileManager.default.copyItem(at: sourceURL, to: destination)
+
+            return SharedAttachment(
+                filename: originalName,
+                contentType: type.identifier,
+                kind: type.conforms(to: .image) ? "image" : "file",
+                relativePath: "SharedAttachments/\(destinationName)"
+            )
+        } catch {
+            return nil
+        }
     }
 }
 
 private struct SharedPayload {
-    var text = ""
+    var title = ""
     var url: URL?
+    var attachment: SharedAwwListBridge.SharedAttachment?
 
-    var displayText: String {
-        let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    var displayTitle: String {
+        let clean = title.trimmingCharacters(in: .whitespacesAndNewlines)
         if !clean.isEmpty { return clean }
-        return url?.absoluteString ?? "Shared product"
+        if let attachment { return attachment.filename }
+        return url?.absoluteString ?? "Shared item"
+    }
+
+    var sourceLabel: String {
+        if let attachment {
+            return attachment.kind == "image" ? "Shared image" : "Shared file"
+        }
+        return url == nil ? "Shared item" : "Shared link"
     }
 }
 
@@ -101,11 +140,9 @@ final class ShareViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        let root = AwwListShareView(
-            extensionContext: extensionContext
+        let host = UIHostingController(
+            rootView: AwwListShareView(extensionContext: extensionContext)
         )
-        let host = UIHostingController(rootView: root)
-
         addChild(host)
         host.view.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(host.view)
@@ -123,42 +160,34 @@ private struct AwwListShareView: View {
     let extensionContext: NSExtensionContext?
 
     @State private var payload = SharedPayload()
+    @State private var note = ""
     @State private var people: [SharedAwwListBridge.PersonSnapshot] = []
     @State private var selectedIDs: Set<UUID> = []
     @State private var isLoading = true
     @State private var isSaving = false
-    @State private var didSave = false
+    @State private var showPeoplePicker = false
     @State private var errorMessage: String?
-    @State private var showingAllPeople = false
-
-    private var visiblePeople: [SharedAwwListBridge.PersonSnapshot] {
-        Array(people.prefix(5))
-    }
 
     var body: some View {
         NavigationStack {
             Group {
-                if didSave {
-                    successState
-                } else if isLoading {
-                    loadingState
+                if isLoading {
+                    ProgressView("Preparing shared item…")
                 } else {
-                    content
+                    composer
                 }
             }
             .navigationTitle("Add to AwwList")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        extensionContext?.cancelRequest(
-                            withError: NSError(
-                                domain: "AwwList.ShareExtension",
-                                code: NSUserCancelledError
-                            )
-                        )
-                    }
-                    .disabled(isSaving)
+                    Button("Cancel", action: cancel)
+                        .disabled(isSaving)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(isSaving ? "Adding…" : "Add", action: addToAwwList)
+                        .fontWeight(.semibold)
+                        .disabled(isSaving || selectedIDs.isEmpty)
                 }
             }
         }
@@ -166,259 +195,165 @@ private struct AwwListShareView: View {
             people = SharedAwwListBridge.people()
             payload = await loadSharedPayload()
             isLoading = false
+            showPeoplePicker = !people.isEmpty
         }
-        .sheet(isPresented: $showingAllPeople) {
-            allPeopleSheet
+        .sheet(isPresented: $showPeoplePicker) {
+            PeoplePickerSheet(
+                people: people,
+                selectedIDs: $selectedIDs,
+                onDone: { showPeoplePicker = false }
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
+        .alert(
+            "Couldn’t add this item",
+            isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(errorMessage ?? "")
         }
     }
 
-    private var loadingState: some View {
-        VStack(spacing: 14) {
-            ProgressView()
-            Text("Reading shared product…")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private var content: some View {
+    private var composer: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
+            VStack(alignment: .leading, spacing: 20) {
                 sharedPreview
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Note")
+                        .font(.headline)
+
+                    ZStack(alignment: .topLeading) {
+                        if note.isEmpty {
+                            Text("Add a note…")
+                                .foregroundStyle(.tertiary)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 14)
+                                .allowsHitTesting(false)
+                        }
+
+                        TextEditor(text: $note)
+                            .font(.body)
+                            .scrollContentBackground(.hidden)
+                            .frame(minHeight: 130)
+                            .padding(8)
+                    }
+                    .background(
+                        Color.primary.opacity(0.055),
+                        in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    )
+                }
 
                 if people.isEmpty {
                     ContentUnavailableView(
                         "Open AwwList first",
                         systemImage: "person.2.slash",
-                        description: Text("Open the main app once so the Share Extension can safely mirror your people list.")
+                        description: Text("Open the main app once, then try sharing again.")
                     )
                 } else {
-                    peoplePicker
-                }
-
-                if let errorMessage {
-                    Text(errorMessage)
-                        .font(.footnote)
-                        .foregroundStyle(.red)
-                }
-            }
-            .frame(maxWidth: 560, alignment: .leading)
-            .frame(maxWidth: .infinity)
-            .padding(20)
-        }
-        .safeAreaInset(edge: .bottom) {
-            Button {
-                addToAwwList()
-            } label: {
-                HStack(spacing: 8) {
-                    if isSaving {
-                        ProgressView()
-                            .controlSize(.small)
-                    }
-                    Text(isSaving ? "Adding…" : "Add")
-                        .font(.headline)
-                }
-                .frame(maxWidth: .infinity)
-                .frame(height: 50)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(.red)
-            .disabled(isSaving || selectedIDs.isEmpty || people.isEmpty)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(.bar)
-        }
-    }
-
-    private var sharedPreview: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Shared from Safari")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-
-            Text(payload.displayText)
-                .font(.body.weight(.medium))
-                .lineLimit(5)
-                .textSelection(.enabled)
-
-            if let url = payload.url {
-                Text(url.host() ?? url.absoluteString)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.primary.opacity(0.055), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-    }
-
-    private var peoplePicker: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Save for")
-                    .font(.headline)
-
-                Spacer()
-
-                Button(selectedIDs.count == people.count ? "Clear" : "Select all") {
-                    if selectedIDs.count == people.count {
-                        selectedIDs.removeAll()
-                    } else {
-                        selectedIDs = Set(people.map(\.id))
-                    }
-                }
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.red)
-            }
-
-            HStack(spacing: 10) {
-                ForEach(visiblePeople) { person in
-                    personButton(person)
-                }
-
-                if people.count > visiblePeople.count {
                     Button {
-                        showingAllPeople = true
+                        showPeoplePicker = true
                     } label: {
-                        VStack(spacing: 6) {
-                            Image(systemName: "ellipsis")
-                                .font(.headline.weight(.semibold))
-                                .frame(width: 48, height: 48)
-                                .background(Color.primary.opacity(0.07), in: Circle())
-                            Text("More")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                        HStack(spacing: 12) {
+                            Image(systemName: "person.2.fill")
+                                .foregroundStyle(.red)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Save for")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text(recipientLabel)
+                                    .foregroundStyle(.primary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.footnote.weight(.bold))
+                                .foregroundStyle(.tertiary)
                         }
+                        .padding(16)
+                        .background(
+                            Color.primary.opacity(0.055),
+                            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        )
                     }
                     .buttonStyle(.plain)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(20)
         }
     }
 
-    private func personButton(_ person: SharedAwwListBridge.PersonSnapshot) -> some View {
-        let selected = selectedIDs.contains(person.id)
-
-        return Button {
-            if selected {
-                selectedIDs.remove(person.id)
-            } else {
-                selectedIDs.insert(person.id)
-            }
-        } label: {
-            VStack(spacing: 6) {
-                ZStack(alignment: .bottomTrailing) {
-                    Text(person.emoji.isEmpty ? "🎁" : person.emoji)
-                        .font(.title2)
-                        .frame(width: 48, height: 48)
-                        .background(Color.primary.opacity(0.06), in: Circle())
-                        .scaleEffect(selected ? 1.06 : 1)
-
-                    if selected {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(.white, .red)
-                            .background(Color.white, in: Circle())
-                    }
-                }
-
-                Text(person.isOwner ? "You" : person.name)
-                    .font(.caption)
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-            }
-            .frame(width: 64)
-        }
-        .buttonStyle(.plain)
-        .animation(.snappy(duration: 0.2), value: selected)
-    }
-
-    private var allPeopleSheet: some View {
-        NavigationStack {
-            List(people) { person in
-                Button {
-                    if selectedIDs.contains(person.id) {
-                        selectedIDs.remove(person.id)
-                    } else {
-                        selectedIDs.insert(person.id)
-                    }
-                } label: {
-                    HStack(spacing: 12) {
-                        Text(person.emoji.isEmpty ? "🎁" : person.emoji)
-                            .font(.title3)
-                            .frame(width: 36, height: 36)
-                            .background(Color.primary.opacity(0.06), in: Circle())
-
-                        Text(person.isOwner ? "You" : person.name)
-                            .foregroundStyle(.primary)
-
-                        Spacer()
-
-                        if selectedIDs.contains(person.id) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.red)
-                        }
-                    }
-                }
-            }
-            .navigationTitle("People")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") {
-                        showingAllPeople = false
-                    }
-                }
-            }
-        }
-        .presentationDetents([.medium, .large])
-    }
-
-    private var successState: some View {
-        VStack(spacing: 18) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 54))
+    private var sharedPreview: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: payload.attachment?.kind == "image" ? "photo" : "square.and.arrow.down")
+                .font(.title3)
                 .foregroundStyle(.red)
+                .frame(width: 40, height: 40)
+                .background(Color.red.opacity(0.12), in: Circle())
 
-            VStack(spacing: 6) {
-                Text("Added to AwwList")
-                    .font(.title2.weight(.bold))
-                Text("It is safely queued for the selected people.")
-                    .font(.subheadline)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(payload.sourceLabel.uppercased())
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+                Text(payload.displayTitle)
+                    .font(.body.weight(.medium))
+                    .lineLimit(3)
+                if let url = payload.url {
+                    Text(url.host() ?? url.absoluteString)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
             }
-
-            Button("Done") {
-                extensionContext?.completeRequest(returningItems: nil)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(.red)
+            Spacer(minLength: 0)
         }
-        .padding(24)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(16)
+        .background(
+            Color.primary.opacity(0.055),
+            in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+        )
+    }
+
+    private var recipientLabel: String {
+        switch selectedIDs.count {
+        case 0: return "Choose people"
+        case 1:
+            return people.first(where: { selectedIDs.contains($0.id) }).map {
+                $0.isOwner ? "You" : $0.name
+            } ?? "1 person"
+        default: return "\(selectedIDs.count) people"
+        }
     }
 
     private func addToAwwList() {
         isSaving = true
-        errorMessage = nil
-
         let didQueue = SharedAwwListBridge.enqueue(
-            text: payload.text,
+            text: payload.displayTitle,
+            note: note.trimmingCharacters(in: .whitespacesAndNewlines),
             url: payload.url,
+            attachment: payload.attachment,
             recipientIDs: selectedIDs
         )
-
         isSaving = false
+
         if didQueue {
-            withAnimation(.snappy(duration: 0.22)) {
-                didSave = true
-            }
+            extensionContext?.completeRequest(returningItems: nil)
         } else {
-            errorMessage = "AwwList could not save this shared item. Your Safari page is unchanged. Check the App Group capability and try again."
+            errorMessage = "AwwList couldn’t save this shared item. Please check that the app and extension both have the App Group capability."
         }
+    }
+
+    private func cancel() {
+        extensionContext?.cancelRequest(
+            withError: NSError(
+                domain: "AwwList.ShareExtension",
+                code: NSUserCancelledError
+            )
+        )
     }
 
     private func loadSharedPayload() async -> SharedPayload {
@@ -427,8 +362,11 @@ private struct AwwListShareView: View {
         }
 
         var result = SharedPayload()
-
         for item in items {
+            if result.title.isEmpty, let title = item.attributedTitle?.string {
+                result.title = title
+            }
+
             for provider in item.attachments ?? [] {
                 if result.url == nil,
                    provider.hasItemConformingToTypeIdentifier(UTType.url.identifier),
@@ -436,18 +374,22 @@ private struct AwwListShareView: View {
                     result.url = url
                 }
 
-                if result.text.isEmpty,
+                if result.title.isEmpty,
                    provider.hasItemConformingToTypeIdentifier(UTType.plainText.identifier),
                    let text = await loadText(from: provider) {
-                    result.text = text
+                    result.title = text
+                }
+
+                if result.attachment == nil,
+                   let attachment = await loadAttachment(from: provider) {
+                    result.attachment = attachment
                 }
             }
-        }
 
-        if result.text.isEmpty, let attributed = items.first?.attributedContentText {
-            result.text = attributed.string
+            if result.title.isEmpty, let content = item.attributedContentText?.string {
+                result.title = content
+            }
         }
-
         return result
     }
 
@@ -456,12 +398,8 @@ private struct AwwListShareView: View {
             provider.loadItem(forTypeIdentifier: UTType.url.identifier, options: nil) { item, _ in
                 if let url = item as? URL {
                     continuation.resume(returning: url)
-                } else if let nsURL = item as? NSURL {
-                    continuation.resume(returning: nsURL as URL)
-                } else if let data = item as? Data,
-                          let string = String(data: data, encoding: .utf8),
-                          let url = URL(string: string) {
-                    continuation.resume(returning: url)
+                } else if let url = item as? NSURL {
+                    continuation.resume(returning: url as URL)
                 } else {
                     continuation.resume(returning: nil)
                 }
@@ -476,10 +414,81 @@ private struct AwwListShareView: View {
                     continuation.resume(returning: text)
                 } else if let text = item as? NSString {
                     continuation.resume(returning: text as String)
-                } else if let data = item as? Data {
-                    continuation.resume(returning: String(data: data, encoding: .utf8))
                 } else {
                     continuation.resume(returning: nil)
+                }
+            }
+        }
+    }
+
+    private func loadAttachment(
+        from provider: NSItemProvider
+    ) async -> SharedAwwListBridge.SharedAttachment? {
+        guard let identifier = provider.registeredTypeIdentifiers.first(where: {
+            guard let type = UTType($0) else { return false }
+            return !type.conforms(to: .url) && !type.conforms(to: .plainText)
+        }), let type = UTType(identifier) else {
+            return nil
+        }
+
+        return await withCheckedContinuation { continuation in
+            provider.loadFileRepresentation(forTypeIdentifier: identifier) { url, _ in
+                guard let url else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                continuation.resume(
+                    returning: SharedAwwListBridge.persistFile(from: url, type: type)
+                )
+            }
+        }
+    }
+}
+
+private struct PeoplePickerSheet: View {
+    let people: [SharedAwwListBridge.PersonSnapshot]
+    @Binding var selectedIDs: Set<UUID>
+    let onDone: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            List(people) { person in
+                Button {
+                    if selectedIDs.contains(person.id) {
+                        selectedIDs.remove(person.id)
+                    } else {
+                        selectedIDs.insert(person.id)
+                    }
+                } label: {
+                    HStack(spacing: 12) {
+                        Text(person.emoji.isEmpty ? "✨" : person.emoji)
+                            .font(.title3)
+                            .frame(width: 40, height: 40)
+                            .background(Color.primary.opacity(0.06), in: Circle())
+                        Text(person.isOwner ? "You" : person.name)
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Image(
+                            systemName: selectedIDs.contains(person.id)
+                                ? "checkmark.circle.fill"
+                                : "circle"
+                        )
+                        .foregroundStyle(
+                            selectedIDs.contains(person.id) ? .red : .tertiary
+                        )
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+            .navigationTitle("Choose people")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Clear") { selectedIDs.removeAll() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done", action: onDone)
+                        .fontWeight(.semibold)
                 }
             }
         }
