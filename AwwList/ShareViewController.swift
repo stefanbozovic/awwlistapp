@@ -114,6 +114,19 @@ private enum SharedAwwListBridge {
             return nil
         }
     }
+
+    static func image(for attachment: SharedAttachment) -> UIImage? {
+        guard let relativePath = attachment.relativePath,
+              let container = FileManager.default.containerURL(
+                  forSecurityApplicationGroupIdentifier: appGroupID
+              ),
+              let data = try? Data(
+                  contentsOf: container.appendingPathComponent(relativePath)
+              ) else {
+            return nil
+        }
+        return UIImage(data: data)
+    }
 }
 
 private struct SharedPayload {
@@ -126,6 +139,21 @@ private struct SharedPayload {
         if !clean.isEmpty { return clean }
         if let attachment { return attachment.filename }
         return url?.absoluteString ?? "Shared item"
+    }
+
+    var isURLOnly: Bool {
+        let clean = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        return url != nil && (clean.isEmpty || clean == url?.absoluteString)
+    }
+
+    var savedTitle: String {
+        if attachment?.kind == "image" {
+            return "Shared image"
+        }
+        if isURLOnly {
+            return "Shared link"
+        }
+        return displayTitle
     }
 
     var sourceLabel: String {
@@ -165,7 +193,6 @@ private struct AwwListShareView: View {
     @State private var selectedIDs: Set<UUID> = []
     @State private var isLoading = true
     @State private var isSaving = false
-    @State private var showPeoplePicker = false
     @State private var errorMessage: String?
 
     var body: some View {
@@ -194,17 +221,11 @@ private struct AwwListShareView: View {
         .task {
             people = SharedAwwListBridge.people()
             payload = await loadSharedPayload()
+            selectedIDs = Set(people.map(\.id))
+            if let url = payload.url {
+                note = url.absoluteString
+            }
             isLoading = false
-            showPeoplePicker = !people.isEmpty
-        }
-        .sheet(isPresented: $showPeoplePicker) {
-            PeoplePickerSheet(
-                people: people,
-                selectedIDs: $selectedIDs,
-                onDone: { showPeoplePicker = false }
-            )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
         }
         .alert(
             "Couldn’t add this item",
@@ -222,69 +243,138 @@ private struct AwwListShareView: View {
     private var composer: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                sharedPreview
+                peoplePicker
+                noteComposer
+                attachmentPreview
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Note")
-                        .font(.headline)
-
-                    ZStack(alignment: .topLeading) {
-                        if note.isEmpty {
-                            Text("Add a note…")
-                                .foregroundStyle(.tertiary)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 14)
-                                .allowsHitTesting(false)
-                        }
-
-                        TextEditor(text: $note)
-                            .font(.body)
-                            .scrollContentBackground(.hidden)
-                            .frame(minHeight: 130)
-                            .padding(8)
-                    }
-                    .background(
-                        Color.primary.opacity(0.055),
-                        in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    )
-                }
-
-                if people.isEmpty {
-                    ContentUnavailableView(
-                        "Open AwwList first",
-                        systemImage: "person.2.slash",
-                        description: Text("Open the main app once, then try sharing again.")
-                    )
-                } else {
-                    Button {
-                        showPeoplePicker = true
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: "person.2.fill")
-                                .foregroundStyle(.red)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Save for")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Text(recipientLabel)
-                                    .foregroundStyle(.primary)
-                            }
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.footnote.weight(.bold))
-                                .foregroundStyle(.tertiary)
-                        }
-                        .padding(16)
-                        .background(
-                            Color.primary.opacity(0.055),
-                            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
             }
             .padding(20)
         }
+    }
+
+    private var noteComposer: some View {
+        ZStack(alignment: .topLeading) {
+            if note.isEmpty {
+                Text("Start typing…")
+                    .font(.title3)
+                    .foregroundStyle(.tertiary)
+                    .padding(.top, 8)
+                    .allowsHitTesting(false)
+            }
+
+            TextEditor(text: $note)
+                .font(.body)
+                .scrollContentBackground(.hidden)
+                .frame(minHeight: 150)
+                .padding(.vertical, 2)
+        }
+    }
+
+    @ViewBuilder
+    private var attachmentPreview: some View {
+        if let attachment = payload.attachment,
+           attachment.kind == "image",
+           let image = SharedAwwListBridge.image(for: attachment) {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: .infinity)
+                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        } else if let attachment = payload.attachment {
+            Label(attachment.filename, systemImage: "doc.fill")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.secondary)
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.primary.opacity(0.055), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+    }
+
+    @ViewBuilder
+    private var peoplePicker: some View {
+        if people.isEmpty {
+            ContentUnavailableView(
+                "Open AwwList first",
+                systemImage: "person.2.slash",
+                description: Text("Open the main app once, then try sharing again.")
+            )
+        } else {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text("Save for")
+                        .font(.headline)
+
+                    Spacer()
+
+                    Button(
+                        selectedIDs.count == people.count ? "Deselect all" : "Select all"
+                    ) {
+                        if selectedIDs.count == people.count {
+                            selectedIDs.removeAll()
+                        } else {
+                            selectedIDs = Set(people.map(\.id))
+                        }
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.red)
+                }
+
+                ScrollView(.horizontal) {
+                    HStack(spacing: 14) {
+                        ForEach(people) { person in
+                            personButton(person)
+                        }
+                    }
+                    .padding(.horizontal, 2)
+                }
+                .scrollIndicators(.hidden)
+            }
+        }
+    }
+
+    private func personButton(
+        _ person: SharedAwwListBridge.PersonSnapshot
+    ) -> some View {
+        let isSelected = selectedIDs.contains(person.id)
+
+        return Button {
+            if isSelected {
+                selectedIDs.remove(person.id)
+            } else {
+                selectedIDs.insert(person.id)
+            }
+        } label: {
+            VStack(spacing: 6) {
+                ZStack(alignment: .bottomTrailing) {
+                    Text(person.emoji.isEmpty ? "✨" : person.emoji)
+                        .font(.title3)
+                        .frame(width: 50, height: 50)
+                        .background(
+                            isSelected ? Color.red.opacity(0.16) : Color.primary.opacity(0.06),
+                            in: Circle()
+                        )
+                        .overlay {
+                            Circle()
+                                .stroke(isSelected ? Color.red : Color.clear, lineWidth: 2)
+                        }
+
+                    if isSelected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.white, .red)
+                    }
+                }
+
+                Text(person.isOwner ? "You" : person.name)
+                    .font(.caption)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+            }
+            .frame(width: 64)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(person.isOwner ? "You" : person.name)
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
     }
 
     private var sharedPreview: some View {
@@ -318,21 +408,10 @@ private struct AwwListShareView: View {
         )
     }
 
-    private var recipientLabel: String {
-        switch selectedIDs.count {
-        case 0: return "Choose people"
-        case 1:
-            return people.first(where: { selectedIDs.contains($0.id) }).map {
-                $0.isOwner ? "You" : $0.name
-            } ?? "1 person"
-        default: return "\(selectedIDs.count) people"
-        }
-    }
-
     private func addToAwwList() {
         isSaving = true
         let didQueue = SharedAwwListBridge.enqueue(
-            text: payload.displayTitle,
+            text: payload.savedTitle,
             note: note.trimmingCharacters(in: .whitespacesAndNewlines),
             url: payload.url,
             attachment: payload.attachment,

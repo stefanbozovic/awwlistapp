@@ -1,18 +1,18 @@
 import SwiftUI
 import WidgetKit
 
-struct WishmoryWidgetProvider: AppIntentTimelineProvider {
-    func placeholder(in context: Context) -> WishmoryWidgetEntry {
-        WishmoryWidgetEntry(date: .now, people: .previewPeople)
+struct AwwListWidgetProvider: AppIntentTimelineProvider {
+    func placeholder(in context: Context) -> AwwListWidgetEntry {
+        AwwListWidgetEntry(date: .now, people: .previewPeople)
     }
 
-    func snapshot(for configuration: ConfigurationAppIntent, in context: Context) async -> WishmoryWidgetEntry {
-        WishmoryWidgetEntry(date: .now, people: displayedPeople(for: configuration))
+    func snapshot(for configuration: ConfigurationAppIntent, in context: Context) async -> AwwListWidgetEntry {
+        AwwListWidgetEntry(date: .now, people: displayedPeople(for: configuration))
     }
 
-    func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<WishmoryWidgetEntry> {
+    func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<AwwListWidgetEntry> {
         Timeline(
-            entries: [WishmoryWidgetEntry(date: .now, people: displayedPeople(for: configuration))],
+            entries: [AwwListWidgetEntry(date: .now, people: displayedPeople(for: configuration))],
             policy: .never
         )
     }
@@ -23,15 +23,15 @@ struct WishmoryWidgetProvider: AppIntentTimelineProvider {
     }
 }
 
-struct WishmoryWidgetEntry: TimelineEntry {
+struct AwwListWidgetEntry: TimelineEntry {
     let date: Date
     let people: [WidgetPersonEntity]
 }
 
-struct WishmoryWidgetEntryView: View {
+struct AwwListWidgetEntryView: View {
     @Environment(\.widgetFamily) private var family
 
-    let entry: WishmoryWidgetEntry
+    let entry: AwwListWidgetEntry
 
     var body: some View {
         Group {
@@ -55,26 +55,25 @@ private struct AwwSmallWidgetContent: View {
     let destination: URL?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            AwwWidgetBrand()
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top) {
+                AwwWidgetBrand(compact: true)
 
-            Spacer(minLength: 0)
+                Spacer(minLength: 4)
+
+                AwwAddWishButton(destination: destination, size: 42)
+            }
 
             Text("Wishes come true")
-                .font(.title3.weight(.bold))
+                .font(.headline.weight(.bold))
                 .foregroundStyle(.primary)
                 .lineLimit(2)
+                .minimumScaleFactor(0.85)
 
-            HStack(alignment: .bottom) {
-                Text("Save it before it disappears.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-
-                Spacer(minLength: 8)
-
-                AwwAddWishButton(destination: destination)
-            }
+            Text("Save a wish")
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
         }
     }
 }
@@ -83,16 +82,17 @@ private struct AwwMediumWidgetContent: View {
     let destination: URL?
 
     var body: some View {
-        HStack(alignment: .top, spacing: 14) {
+        HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 9) {
                 AwwWidgetBrand()
 
                 Spacer(minLength: 0)
 
-                Text("Omg you remembered!")
+                Text("You remembered!")
                     .font(.title3.weight(.bold))
                     .foregroundStyle(.primary)
-                    .lineLimit(2)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
 
                 Text("Exactly.")
                     .font(.subheadline.weight(.medium))
@@ -101,13 +101,7 @@ private struct AwwMediumWidgetContent: View {
 
             Spacer(minLength: 0)
 
-            VStack(alignment: .trailing, spacing: 12) {
-                AwwAddWishButton(destination: destination, size: 56)
-
-                Text("Save a wish")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-            }
+            AwwAddWishButton(destination: destination, size: 50)
         }
     }
 }
@@ -142,6 +136,8 @@ private struct AwwLargeWidgetContent: View {
 }
 
 private struct AwwWidgetBrand: View {
+    var compact = false
+
     var body: some View {
         HStack(spacing: 8) {
             Image("AwwListLogo")
@@ -149,9 +145,12 @@ private struct AwwWidgetBrand: View {
                 .scaledToFit()
                 .frame(width: 28, height: 28)
 
-            Text("AwwList")
-                .font(.headline.weight(.bold))
-                .foregroundStyle(.primary)
+            if !compact {
+                Text("AwwList")
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+            }
         }
     }
 }
@@ -193,7 +192,7 @@ private struct AwwPeopleSummary: View {
                 }
             }
         }
-        .padding(12)
+        .padding(10)
         .background(AwwWidgetColor.card, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 }
@@ -206,7 +205,7 @@ private struct AwwPersonRow: View {
             Text(person.emoji.isEmpty ? "♡" : person.emoji)
                 .font(.body)
                 .frame(width: 28, height: 28)
-                .background(.white, in: Circle())
+                .background(AwwWidgetColor.avatar, in: Circle())
                 .overlay(Circle().stroke(AwwWidgetColor.divider, lineWidth: 1))
 
             Text(person.name)
@@ -229,20 +228,22 @@ private enum WidgetDestination {
 
 private enum AwwWidgetColor {
     static let red = Color(red: 0.94, green: 0.06, blue: 0.24)
-    static let card = Color(red: 0.96, green: 0.96, blue: 0.98)
+    static let background = Color(uiColor: .systemBackground)
+    static let card = Color(uiColor: .secondarySystemBackground)
+    static let avatar = Color(uiColor: .tertiarySystemBackground)
     static let divider = Color.black.opacity(0.08)
 }
 
-struct WishmoryWidget: Widget {
-    let kind = "WishmoryWidget"
+struct AwwListWidget: Widget {
+    let kind = "AwwListWidget"
 
     var body: some WidgetConfiguration {
         AppIntentConfiguration(
             kind: kind,
             intent: ConfigurationAppIntent.self,
-            provider: WishmoryWidgetProvider()
+            provider: AwwListWidgetProvider()
         ) { entry in
-            WishmoryWidgetEntryView(entry: entry)
+            AwwListWidgetEntryView(entry: entry)
         }
         .configurationDisplayName("AwwList")
         .description("Save a wish before it disappears.")
@@ -253,8 +254,8 @@ struct WishmoryWidget: Widget {
 private extension View {
     var widgetSurface: some View {
         self
-            .padding()
-            .containerBackground(.white, for: .widget)
+            .padding(12)
+            .containerBackground(AwwWidgetColor.background, for: .widget)
     }
 }
 
@@ -267,19 +268,19 @@ private extension Array where Element == WidgetPersonEntity {
 }
 
 #Preview(as: .systemSmall) {
-    WishmoryWidget()
+    AwwListWidget()
 } timeline: {
-    WishmoryWidgetEntry(date: .now, people: .previewPeople)
+    AwwListWidgetEntry(date: .now, people: .previewPeople)
 }
 
 #Preview(as: .systemMedium) {
-    WishmoryWidget()
+    AwwListWidget()
 } timeline: {
-    WishmoryWidgetEntry(date: .now, people: .previewPeople)
+    AwwListWidgetEntry(date: .now, people: .previewPeople)
 }
 
 #Preview(as: .systemLarge) {
-    WishmoryWidget()
+    AwwListWidget()
 } timeline: {
-    WishmoryWidgetEntry(date: .now, people: .previewPeople)
+    AwwListWidgetEntry(date: .now, people: .previewPeople)
 }

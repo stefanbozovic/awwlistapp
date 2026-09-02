@@ -4,7 +4,7 @@ import WidgetKit
 
 enum AwwWidgetBridge {
     private static let appGroupIdentifier = "group.com.stefanbozovic.awwlist"
-    private static let snapshotKey = "Wishmory.widgetSnapshot.v1"
+    private static let snapshotKey = "AwwList.widgetSnapshot.v1"
 
     private struct Snapshot: Codable {
         let people: [PersonSnapshot]
@@ -41,6 +41,6 @@ enum AwwWidgetBridge {
         }
 
         defaults.set(data, forKey: snapshotKey)
-        WidgetCenter.shared.reloadTimelines(ofKind: "WishmoryWidget")
+        WidgetCenter.shared.reloadTimelines(ofKind: "AwwListWidget")
     }
 }

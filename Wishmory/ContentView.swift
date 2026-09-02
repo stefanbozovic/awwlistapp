@@ -8,7 +8,6 @@ import UserNotifications
 import UniformTypeIdentifiers
 import Combine
 import MetricKit
-import AuthenticationServices
 
 
 private enum AwwRefreshMessage {
@@ -568,9 +567,6 @@ struct Root: View {
                 Home()
                     .task {
                         prepareData()
-                        // Existing local content is already visible. Apple credential
-                        // restoration runs separately and never blocks Home.
-                        _ = await AwwAccountManager.restoreAppleCredentialState()
                     }
             } else {
                 Onboarding(finish: completeOnboarding)
@@ -733,8 +729,6 @@ struct Onboarding: View {
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var birthday = Date.now
     @State private var knowsBirthday = true
-    @State private var appleCredentialSnapshot: AwwAppleCredentialSnapshot?
-    @State private var signInError = ""
 
     private static let emojiSuggestions = [
         "🌼", "🪩", "🍓", "🦋",
@@ -754,10 +748,7 @@ struct Onboarding: View {
             Group {
                 switch page {
                 case 0:
-                    OnboardingWelcomePage(
-                        completion: handleAppleSignIn,
-                        continueWithoutAccount: continueWithoutAccount
-                    )
+                    OnboardingWelcomePage(startWishing: startWishing)
 
                 case 1:
                     OnboardingProfilePage(
@@ -796,17 +787,6 @@ struct Onboarding: View {
             }
         }
         .tint(.red)
-        .alert(
-            "Couldn’t continue with Apple",
-            isPresented: Binding(
-                get: { !signInError.isEmpty },
-                set: { if !$0 { signInError = "" } }
-            )
-        ) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(signInError)
-        }
         .onChange(of: selectedPhoto) { _, newPhoto in
             guard let newPhoto else { return }
 
@@ -818,63 +798,11 @@ struct Onboarding: View {
         }
     }
 
-    private func continueWithoutAccount() {
-        // Guest/local-first onboarding. A stable local userID is created by the
-        // existing account manager when onboarding completes, so all content can
-        // later be attached to Apple without changing any object IDs.
-        appleCredentialSnapshot = nil
-        signInError = ""
+    private func startWishing() {
         name = ""
 
         withAnimation(.snappy(duration: 0.28)) {
             page = 1
-        }
-    }
-
-    private func handleAppleSignIn(
-        _ result: Result<ASAuthorization, Error>
-    ) {
-        switch result {
-        case .failure(let error):
-            signInError = error.localizedDescription
-
-        case .success(let authorization):
-            guard let credential = authorization.credential
-                as? ASAuthorizationAppleIDCredential else {
-                signInError = "Apple did not return a valid account credential."
-                return
-            }
-
-            do {
-                let snapshot = AwwAccountManager.snapshot(from: credential)
-                let account = try AwwAccountManager.acceptAppleCredential(
-                    credential,
-                    context: context
-                )
-                appleCredentialSnapshot = snapshot
-
-                // Apple may only return the name once. Use the freshly returned name
-                // first, then the immediately persisted local copy.
-                if trimmedName.isEmpty {
-                    name = snapshot.givenName
-                        ?? account.displayName.nonEmptyValue
-                        ?? AwwAppleIdentityStore.givenName
-                        ?? ""
-                }
-
-                AwwCloudAccountBridge.linkInBackground(
-                    credential: snapshot,
-                    localUserID: account.id,
-                    displayName: name.nonEmptyValue ?? account.displayName.nonEmptyValue,
-                    context: context
-                )
-
-                withAnimation(.snappy(duration: 0.28)) {
-                    page = 1
-                }
-            } catch {
-                signInError = "Your Apple sign-in succeeded, but AwwList could not save the local account yet: \(error.localizedDescription)"
-            }
         }
     }
 
@@ -1063,11 +991,7 @@ struct OnboardingNotificationsPage: View {
 }
 
 struct OnboardingWelcomePage: View {
-    let completion: (Result<ASAuthorization, Error>) -> Void
-    let continueWithoutAccount: () -> Void
-
-    @Environment(\.colorScheme)
-    private var colorScheme
+    let startWishing: () -> Void
 
     var body: some View {
         OnboardingCenteredShell {
@@ -1107,31 +1031,16 @@ struct OnboardingWelcomePage: View {
                 }
             }
         } footer: {
-            VStack(spacing: 4) {
-                SignInWithAppleButton(
-                    .continue,
-                    onRequest: { request in
-                        request.requestedScopes = [.fullName]
-                    },
-                    onCompletion: completion
-                )
-                .signInWithAppleButtonStyle(
-                    colorScheme == .dark ? .white : .black
-                )
-                .frame(height: 54)
-                .clipShape(Capsule())
-                .accessibilityLabel("Continue with Apple")
+            VStack(spacing: 8) {
+                Button("Start Wishing", systemImage: "heart.fill", action: startWishing)
+                    .buttonStyle(.glassProminent)
+                    .tint(.red)
+                    .controlSize(.large)
+                    .accessibilityHint("Set up your profile to begin using AwwList locally on this iPhone")
 
-                Button(action: continueWithoutAccount) {
-                    Text("Continue without an account")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 34)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityHint("Use AwwList locally on this iPhone")
+                Text("No account. Data is saved locally.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -1902,25 +1811,26 @@ enum AwwShareBridge {
     struct PendingShare: Codable, Identifiable {
         let id: UUID
         let text: String
+        let note: String?
         let urlString: String?
+        let attachment: SharedAttachment?
         let recipientIDs: [UUID]
         let created: Date
     }
 
+    struct SharedAttachment: Codable {
+        let filename: String
+        let contentType: String
+        let kind: String
+        let relativePath: String?
+    }
+
     private static let peopleKey = "AwwList.sharedPeople.v1"
     private static let pendingKey = "AwwList.pendingShares.v1"
+    private static let sharedAppGroupID = "group.com.stefanbozovic.awwlist"
 
     static var appGroupID: String? {
-        if let configured = Bundle.main.object(forInfoDictionaryKey: "AwwListAppGroup") as? String,
-           !configured.isEmpty {
-            return configured
-        }
-
-        guard var bundleID = Bundle.main.bundleIdentifier, !bundleID.isEmpty else { return nil }
-        if bundleID.hasSuffix(".ShareExtension") {
-            bundleID.removeLast(".ShareExtension".count)
-        }
-        return "group.\(bundleID)"
+        sharedAppGroupID
     }
 
     private static var defaults: UserDefaults? {
@@ -1958,19 +1868,29 @@ enum AwwShareBridge {
 
             let cleanText = share.text.trimmingCharacters(in: .whitespacesAndNewlines)
             let sharedURL = share.urlString.flatMap(URL.init(string:))
-            let title = cleanText.isEmpty
-                ? (sharedURL?.absoluteString ?? "Shared product")
-                : cleanText
+            let isURLOnlyShare = cleanText.isEmpty
+                || cleanText == sharedURL?.absoluteString
+            let title: String
+            if let attachment = share.attachment, isURLOnlyShare {
+                title = attachment.kind == "image" ? "Shared image" : attachment.filename
+            } else {
+                title = cleanText.isEmpty
+                    ? (sharedURL?.absoluteString ?? "Shared product")
+                    : cleanText
+            }
 
             for person in recipients {
                 let idea = Idea(
                     title,
+                    note: share.note ?? "",
                     category: "",
                     status: "Would love",
                     person: person
                 )
 
-                if let sharedURL, isHTTPURL(sharedURL) {
+                if share.attachment == nil,
+                   let sharedURL,
+                   isHTTPURL(sharedURL) {
                     let attachment = IdeaAttachment(
                         filename: sharedURL.host() ?? sharedURL.absoluteString,
                         contentType: UTType.url.identifier,
@@ -1979,6 +1899,18 @@ enum AwwShareBridge {
                         idea: idea
                     )
                     context.insert(attachment)
+                }
+
+                if let attachment = share.attachment,
+                   let data = sharedAttachmentData(attachment) {
+                    let importedAttachment = IdeaAttachment(
+                        filename: attachment.filename,
+                        contentType: attachment.contentType,
+                        kind: attachment.kind,
+                        data: data,
+                        idea: idea
+                    )
+                    context.insert(importedAttachment)
                 }
 
                 context.insert(idea)
@@ -1990,6 +1922,9 @@ enum AwwShareBridge {
         guard !importedIDs.isEmpty else { return }
 
         if AwwPersistence.save(context) {
+            for share in queued where importedIDs.contains(share.id) {
+                removeSharedAttachment(share.attachment)
+            }
             let remaining = queued.filter { !importedIDs.contains($0.id) }
             if remaining.isEmpty {
                 defaults.removeObject(forKey: pendingKey)
@@ -1997,6 +1932,26 @@ enum AwwShareBridge {
                 defaults.set(encoded, forKey: pendingKey)
             }
         }
+    }
+
+    private static func sharedAttachmentData(_ attachment: SharedAttachment) -> Data? {
+        guard let relativePath = attachment.relativePath,
+              let container = FileManager.default.containerURL(
+                  forSecurityApplicationGroupIdentifier: sharedAppGroupID
+              ) else {
+            return nil
+        }
+        return try? Data(contentsOf: container.appendingPathComponent(relativePath))
+    }
+
+    private static func removeSharedAttachment(_ attachment: SharedAttachment?) {
+        guard let relativePath = attachment?.relativePath,
+              let container = FileManager.default.containerURL(
+                  forSecurityApplicationGroupIdentifier: sharedAppGroupID
+              ) else {
+            return
+        }
+        try? FileManager.default.removeItem(at: container.appendingPathComponent(relativePath))
     }
 }
 
@@ -2240,6 +2195,7 @@ struct Home: View {
             .onReceive(NotificationCenter.default.publisher(for: .awwDataDidChange)) { _ in
                 refreshHomeCategorySummaries()
                 AwwShareBridge.mirrorPeople(sortedPeople)
+                AwwWidgetBridge.refresh(people: sortedPeople, ideas: ideas)
             }
             .onReceive(NotificationCenter.default.publisher(for: .awwWishSaved)) {
                 handleWishSavedFeedback($0)
@@ -2251,6 +2207,7 @@ struct Home: View {
             .task {
                 refreshHomeCategorySummaries()
                 AwwShareBridge.mirrorPeople(sortedPeople)
+                AwwWidgetBridge.refresh(people: sortedPeople, ideas: ideas)
                 AwwShareBridge.importPendingShares(context: context, people: sortedPeople)
                 retryPendingDeepLink()
             }
@@ -2261,6 +2218,7 @@ struct Home: View {
             }
             .onChange(of: ideas.count) { _, _ in
                 retryPendingDeepLink()
+                AwwWidgetBridge.refresh(people: sortedPeople, ideas: ideas)
             }
             .onChange(of: categoryRecords.count) { _, _ in
                 retryPendingDeepLink()
@@ -5553,7 +5511,12 @@ struct WishDetail: View {
     }
 
     private func handleBodyTextChange(_ newText: String) {
-        categories = hashtagCategoryValues(in: newText)
+        let hashtagsInText = hashtagCategoryValues(in: newText)
+        categories = categories.filter { category in
+            hashtagsInText.contains {
+                $0.localizedCaseInsensitiveCompare(category) == .orderedSame
+            }
+        }
         ensureLinkAttachments(for: newText)
         saveText()
         scheduleAutosave()
@@ -5647,6 +5610,7 @@ struct WishDetail: View {
                 text: $bodyText,
                 focusRequest: textFocusRequest,
                 onFocusChange: { _ in },
+                highlightedHashtags: categories,
                 font: .preferredFont(forTextStyle: .body),
                 minHeight: 150,
                 maxHeight: 520
@@ -5707,7 +5671,7 @@ struct WishDetail: View {
                    !existingCategories.contains(where: {
                        $0.localizedCaseInsensitiveCompare(hashtagQuery) == .orderedSame
                    }) {
-                    Button("Use #\(hashtagQuery)") {
+                    Button("Add #\(hashtagQuery)") {
                         applyCategory(hashtagQuery)
                     }
                     .buttonStyle(.borderedProminent)
@@ -5923,7 +5887,7 @@ struct WishDetail: View {
             )
         }
 
-        categories = hashtagCategoryValues(in: bodyText)
+        categories = uniqueCategoryValues(categories + [cleaned])
         try? AwwCategoryStore.assign(
             names: categories,
             to: idea,
@@ -5937,7 +5901,7 @@ struct WishDetail: View {
 
     private func saveText() {
         let newTitle = bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let newCategories = hashtagCategoryValues(in: bodyText)
+        let newCategories = categories
         let newCategoryValue = encodedCategoryValues(newCategories)
         let categoryChanged = idea.category != newCategoryValue
 
@@ -6677,12 +6641,6 @@ struct Settings: View {
     @Environment(\.modelContext)
     private var context
 
-    @Environment(\.colorScheme)
-    private var colorScheme
-
-    @Query
-    private var users: [AwwUser]
-
     @Query
     private var categories: [Category]
 
@@ -6701,7 +6659,7 @@ struct Settings: View {
     @State private var erase = false
     @State private var restartOnboarding = false
     @State private var reminderStatus = ""
-    @State private var accountError = ""
+    @State private var settingsError = ""
 
     @AppStorage("onboarded")
     private var onboarded = true
@@ -6742,7 +6700,6 @@ struct Settings: View {
     var body: some View {
         NavigationStack {
             Form {
-                accountSection
                 reminderSection
 
                 Section("Onboarding") {
@@ -6810,7 +6767,7 @@ struct Settings: View {
                     onboarded = false
                 }
             } message: {
-                Text("Your people, wishes, categories, and account will stay in place.")
+                Text("Your people, wishes, categories, and profile will stay in place.")
             }
             .alert("Delete everything?", isPresented: $erase) {
                 Button("Cancel", role: .cancel) {}
@@ -6819,93 +6776,18 @@ struct Settings: View {
                     deleteEverything()
                 }
             } message: {
-                Text("This removes every person, wish, category, moment, reminder, and attachment from this iPhone. Your account identity stays signed in.")
+                Text("This removes every person, wish, category, moment, reminder, and attachment from this iPhone.")
             }
             .alert(
-                "Couldn’t link Apple account",
+                "Couldn’t reset local data",
                 isPresented: Binding(
-                    get: { !accountError.isEmpty },
-                    set: { if !$0 { accountError = "" } }
+                    get: { !settingsError.isEmpty },
+                    set: { if !$0 { settingsError = "" } }
                 )
             ) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text(accountError)
-            }
-        }
-    }
-
-    private var accountSection: some View {
-        Section("Account") {
-            if let user = users.first,
-               !user.appleUserIdentifier.isEmpty {
-                Label("Signed in with Apple", systemImage: "apple.logo")
-
-                if !user.displayName.isEmpty {
-                    Text(user.displayName)
-                        .foregroundStyle(.secondary)
-                }
-
-                Text("Your Apple account is used to identify your AwwList account.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            } else {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Use your Apple account as your AwwList identity.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-
-                    SignInWithAppleButton(
-                        .continue,
-                        onRequest: { request in
-                            request.requestedScopes = [.fullName]
-                        },
-                        onCompletion: linkExistingAccount
-                    )
-                    .signInWithAppleButtonStyle(
-                        colorScheme == .dark ? .white : .black
-                    )
-                    .frame(height: 48)
-                    .clipShape(Capsule())
-                }
-                .padding(.vertical, 4)
-            }
-        }
-    }
-
-    private func linkExistingAccount(
-        _ result: Result<ASAuthorization, Error>
-    ) {
-        switch result {
-        case .failure(let error):
-            accountError = error.localizedDescription
-
-        case .success(let authorization):
-            guard let credential = authorization.credential
-                as? ASAuthorizationAppleIDCredential else {
-                accountError = "Apple did not return a valid account credential."
-                return
-            }
-
-            do {
-                let snapshot = AwwAccountManager.snapshot(from: credential)
-                let account = try AwwAccountManager.acceptAppleCredential(
-                    credential,
-                    context: context
-                )
-                try context.save()
-
-                AwwCloudAccountBridge.linkInBackground(
-                    credential: snapshot,
-                    localUserID: account.id,
-                    displayName: account.displayName.nonEmptyValue,
-                    context: context
-                )
-
-                NotificationCenter.default.post(name: .awwDataDidChange, object: nil)
-                AwwHaptics.success()
-            } catch {
-                accountError = error.localizedDescription
+                Text(settingsError)
             }
         }
     }
@@ -7020,7 +6902,7 @@ struct Settings: View {
             try context.save()
             NotificationCenter.default.post(name: .awwDataDidChange, object: nil)
         } catch {
-            accountError = "Couldn’t reset local data: \(error.localizedDescription)"
+            settingsError = "Couldn’t reset local data: \(error.localizedDescription)"
         }
     }
 }

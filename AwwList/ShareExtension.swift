@@ -474,8 +474,11 @@ private struct PeoplePickerSheet: View {
                                 : "circle"
                         )
                         .foregroundStyle(
-                            selectedIDs.contains(person.id) ? .red : .tertiary
+                            selectedIDs.contains(person.id)
+                                ? Color.red
+                                : Color.secondary
                         )
+                        .opacity(selectedIDs.contains(person.id) ? 1 : 0.45)
                     }
                 }
                 .buttonStyle(.plain)

@@ -2,7 +2,7 @@ import AppIntents
 import Foundation
 import WidgetKit
 
-struct WidgetPersonEntity: AppEntity, Hashable {
+struct WidgetPersonEntity: AppEntity, Codable, Hashable {
     static var typeDisplayRepresentation: TypeDisplayRepresentation = "Person"
     static var defaultQuery = WidgetPeopleQuery()
 
@@ -33,7 +33,7 @@ struct WidgetPeopleQuery: EntityQuery {
 }
 
 struct ConfigurationAppIntent: WidgetConfigurationIntent {
-    static var title: LocalizedStringResource { "Wishmory" }
+    static var title: LocalizedStringResource { "AwwList" }
     static var description = IntentDescription("Choose the people you want to keep close on your Home Screen.")
 
     @Parameter(title: "People to show")
@@ -42,7 +42,7 @@ struct ConfigurationAppIntent: WidgetConfigurationIntent {
 
 enum WidgetPeopleStore {
     private static let appGroupIdentifier = "group.com.stefanbozovic.awwlist"
-    private static let snapshotKey = "Wishmory.widgetSnapshot.v1"
+    private static let snapshotKey = "AwwList.widgetSnapshot.v1"
 
     private struct Snapshot: Codable {
         let people: [WidgetPersonEntity]

@@ -1351,6 +1351,7 @@ struct LinkAwareTextView: UIViewRepresentable {
     let focusRequest: Int
     let onFocusChange: (Bool) -> Void
     let onHashtagTap: (String) -> Void
+    let highlightedHashtags: [String]
     let font: UIFont
     let minHeight: CGFloat
     let maxHeight: CGFloat
@@ -1360,6 +1361,7 @@ struct LinkAwareTextView: UIViewRepresentable {
         focusRequest: Int,
         onFocusChange: @escaping (Bool) -> Void,
         onHashtagTap: @escaping (String) -> Void = { _ in },
+        highlightedHashtags: [String] = [],
         font: UIFont,
         minHeight: CGFloat,
         maxHeight: CGFloat
@@ -1368,6 +1370,7 @@ struct LinkAwareTextView: UIViewRepresentable {
         self.focusRequest = focusRequest
         self.onFocusChange = onFocusChange
         self.onHashtagTap = onHashtagTap
+        self.highlightedHashtags = highlightedHashtags
         self.font = font
         self.minHeight = minHeight
         self.maxHeight = maxHeight
@@ -1481,9 +1484,20 @@ struct LinkAwareTextView: UIViewRepresentable {
         }
 
         if let hashtagRegex = try? NSRegularExpression(
-            pattern: #"#[\p{L}\p{N}_-]+"#
+            pattern: #"#([\p{L}\p{N}_-]+)"#
         ) {
             for match in hashtagRegex.matches(in: textView.text, range: fullRange) {
+                guard let nameRange = Range(match.range(at: 1), in: textView.text) else {
+                    continue
+                }
+
+                let name = String(textView.text[nameRange])
+                guard highlightedHashtags.contains(where: {
+                    $0.localizedCaseInsensitiveCompare(name) == .orderedSame
+                }) else {
+                    continue
+                }
+
                 textView.textStorage.addAttribute(
                     .foregroundColor,
                     value: UIColor.systemRed,
@@ -1700,6 +1714,22 @@ struct RichLinkPreview:
             coordinator:
                 context.coordinator
         )
+    }
+
+    func sizeThatFits(
+        _ proposal: ProposedViewSize,
+        uiView: LPLinkView,
+        context: Context
+    ) -> CGSize? {
+        guard let width = proposal.width,
+              let height = proposal.height
+        else {
+            return nil
+        }
+
+        // LPLinkView derives a very wide intrinsic size from a long URL while
+        // metadata is loading. Honor SwiftUI's proposed card size instead.
+        return CGSize(width: width, height: height)
     }
 
     static func dismantleUIView(
@@ -2728,6 +2758,16 @@ struct GiftMessageBubble: View {
         )
     }
 
+    // URLs are often a single uninterrupted run of text. Give SwiftUI harmless
+    // wrapping points so a long redirect URL can never widen a wish card.
+    private var cardDisplayText: String {
+        displayBodyText
+            .replacingOccurrences(of: "/", with: "/\u{200B}")
+            .replacingOccurrences(of: "?", with: "?\u{200B}")
+            .replacingOccurrences(of: "&", with: "&\u{200B}")
+            .replacingOccurrences(of: "=", with: "=\u{200B}")
+    }
+
     private var categories: [String] {
         categoryValues(
             from: idea.category
@@ -2867,7 +2907,7 @@ struct GiftMessageBubble: View {
             if !displayBodyText.isEmpty {
                 HStack(alignment: .top, spacing: 8) {
                     LinkifiedText(
-                        text: displayBodyText,
+                        text: cardDisplayText,
                         font: .body,
                         alignment: .leading
                     )
@@ -2951,7 +2991,7 @@ struct GiftMessageBubble: View {
                 spacing: 6
             ) {
                 if !displayBodyText.isEmpty {
-                    Text(displayBodyText)
+                    Text(cardDisplayText)
                         .font(
                             .system(
                                 size: gridTextFontSize,
@@ -2992,10 +3032,6 @@ struct GiftMessageBubble: View {
 
             if !previewImageData.isEmpty {
                 gridImagePreview
-
-                if let url = linkURLs.first {
-                    gridLinkChip(url)
-                }
             } else if let url = linkURLs.first {
                 RichLinkPreview(
                     url: url,
@@ -3004,7 +3040,7 @@ struct GiftMessageBubble: View {
                 .frame(
                     maxWidth: .infinity
                 )
-                .frame(height: 72)
+                .frame(height: 100)
                 .clipShape(
                     .rect(
                         cornerRadius: 12
@@ -3272,7 +3308,7 @@ struct GiftMessageBubble: View {
         .padding(9)
         .frame(
             maxWidth: .infinity,
-            minHeight: 58,
+            minHeight: 100,
             alignment: .leading
         )
         .background(
@@ -3431,7 +3467,7 @@ struct GiftMessageBubble: View {
                         .scaledToFill()
                         .frame(
                             width: imageWidth,
-                            height: 72
+                            height: 100
                         )
                         .clipped()
                         .clipShape(
@@ -3468,7 +3504,7 @@ struct GiftMessageBubble: View {
                 }
             }
         }
-        .frame(height: 72)
+        .frame(height: 100)
     }
 
     private func bubbleBackground(

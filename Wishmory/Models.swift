@@ -5,7 +5,6 @@
 // - New ownership/relationship fields are additive and optional where legacy rows may not have values.
 // - AwwAccountManager performs an idempotent data migration after a local userID exists.
 // - Legacy category strings remain only as a denormalized display/search cache. Category identity is UUID-based.
-// - No local row is deleted merely because an account is linked to Sign in with Apple.
 
 import Foundation
 import SwiftData
@@ -33,15 +32,15 @@ enum AwwIdentityCache {
         return newID
     }
 
-    static func adoptCanonicalUserID(_ id: UUID) {
+    static func useExistingLocalUserID(_ id: UUID) {
         UserDefaults.standard.set(id.uuidString, forKey: userIDKey)
     }
+
 }
 
 @Model
 final class AwwUser {
     var id: UUID = UUID()
-    var appleUserIdentifier: String = ""
     var displayName: String = ""
     var createdAt: Date = Foundation.Date.now
     var updatedAt: Date = Foundation.Date.now
@@ -49,11 +48,9 @@ final class AwwUser {
 
     init(
         id: UUID = UUID(),
-        appleUserIdentifier: String = "",
         displayName: String = ""
     ) {
         self.id = id
-        self.appleUserIdentifier = appleUserIdentifier
         self.displayName = displayName
     }
 }
