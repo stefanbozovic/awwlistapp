@@ -119,45 +119,45 @@ struct AwwDataImage: View {
 
 struct TopPageGradient: View {
     var body: some View {
+        LinearGradient(
+            colors: [
+                Color(uiColor: .secondarySystemBackground).opacity(0.92),
+                Color(uiColor: .systemBackground)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .frame(maxWidth: .infinity)
+        .frame(height: 250)
+        .ignoresSafeArea(edges: [.top, .horizontal])
+    }
+}
+
+// MARK: - Composer Background
+
+struct ComposerBottomGradient: View {
+    var body: some View {
         ZStack {
-            // Deep cherry base
-            RadialGradient(
+            LinearGradient(
                 colors: [
-                    Color(red: 0.72, green: 0.08, blue: 0.10).opacity(0.30),
-                    Color(red: 0.55, green: 0.04, blue: 0.07).opacity(0.12),
-                    .clear
+                    Color(red: 0.22, green: 0.00, blue: 0.06),
+                    Color(red: 0.48, green: 0.00, blue: 0.11),
+                    Color(red: 0.72, green: 0.02, blue: 0.16)
                 ],
-                center: .topLeading,
-                startRadius: 0,
-                endRadius: 360
+                startPoint: .bottomLeading,
+                endPoint: .topTrailing
             )
 
-            // Warm red / orange light
             RadialGradient(
                 colors: [
-                    Color(red: 0.95, green: 0.22, blue: 0.10).opacity(0.18),
-                    Color(red: 0.82, green: 0.10, blue: 0.06).opacity(0.08),
+                    Color(red: 1.00, green: 0.16, blue: 0.28).opacity(0.62),
                     .clear
                 ],
                 center: .topTrailing,
                 startRadius: 0,
-                endRadius: 300
-            )
-
-            // Fade everything naturally into the page
-            LinearGradient(
-                colors: [
-                    .clear,
-                    Color(.systemBackground).opacity(0.10),
-                    Color(.systemBackground)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
+                endRadius: 380
             )
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: 250)
-        .ignoresSafeArea(edges: [.top, .horizontal])
     }
 }
 
@@ -207,6 +207,7 @@ struct InlineWishComposer: View {
 
     @Binding private var selectedPersonIDs: Set<UUID>
     @Binding private var requestFocus: Bool
+    @Binding private var quickIdea: String
 
     @Environment(\.modelContext)
     private var context
@@ -239,6 +240,7 @@ struct InlineWishComposer: View {
         people = [person]
         _selectedPersonIDs = .constant([person.id])
         _requestFocus = .constant(false)
+        _quickIdea = .constant("")
         onFocusChange = { _ in }
     }
 
@@ -246,11 +248,13 @@ struct InlineWishComposer: View {
         people: [Person],
         selectedPersonIDs: Binding<Set<UUID>>,
         requestFocus: Binding<Bool> = .constant(false),
+        quickIdea: Binding<String> = .constant(""),
         onFocusChange: @escaping (Bool) -> Void = { _ in }
     ) {
         self.people = people
         _selectedPersonIDs = selectedPersonIDs
         _requestFocus = requestFocus
+        _quickIdea = quickIdea
         self.onFocusChange = onFocusChange
     }
 
@@ -324,12 +328,13 @@ struct InlineWishComposer: View {
                             text: $title,
                             focusRequest: focusRequestID,
                             onFocusChange: composerFocusChanged,
-                            font: .preferredFont(forTextStyle: .body),
+                            font: UIFontMetrics(forTextStyle: .body).scaledFont(
+                                for: .systemFont(ofSize: 18)
+                            ),
                             minHeight: 28,
                             maxHeight: isTitleFocused ? 96 : 44
                         )
                     }
-                    .padding(.horizontal, isTitleFocused ? 4 : 0)
 
                     saveButton
                         .frame(width: isTitleFocused ? 0 : 44)
@@ -352,38 +357,43 @@ struct InlineWishComposer: View {
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, isTitleFocused || hasAttachments ? 12 : 6)
+            .padding(.horizontal, 8)
+            .padding(.vertical, isTitleFocused || hasAttachments ? 10 : 5)
             .frame(height: isTitleFocused || hasAttachments ? nil : 56)
             .overlay {
                 RoundedRectangle(cornerRadius: 30, style: .continuous)
                     .stroke(
                         isDropTarget
                             ? Color.red.opacity(0.78)
-                            : isTitleFocused
-                                ? Color.red.opacity(0.15)
-                                : Color.red.opacity(0.20),
+                            : Color.primary.opacity(isTitleFocused ? 0.16 : 0.11),
                         lineWidth: isTitleFocused ? 1.2 : 0.9
                     )
                     .allowsHitTesting(false)
             }
             .background {
-                RoundedRectangle(cornerRadius: 30, style: .continuous)
-                    .fill(Color(uiColor: .systemBackground).opacity(0.26))
+                ZStack {
+                    RoundedRectangle(cornerRadius: 30, style: .continuous)
+                        .fill(Color(uiColor: .secondarySystemBackground).opacity(0.84))
+                        .blur(radius: 28)
+                        .offset(y: 24)
+
+                    RoundedRectangle(cornerRadius: 30, style: .continuous)
+                        .fill(Color(uiColor: .systemBackground).opacity(0.92))
+                }
             }
             .compositingGroup()
             .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 30))
             .shadow(
-                color: Color.black.opacity(0.16),
-                radius: 30,
+                color: .black.opacity(0.18),
+                radius: 38,
                 x: 0,
-                y: 14
+                y: 20
             )
             .shadow(
-                color: Color.black.opacity(0.06),
-                radius: 8,
+                color: .black.opacity(0.10),
+                radius: 14,
                 x: 0,
-                y: 3
+                y: 7
             )
         }
         .animation(.snappy(duration: 0.22), value: isTitleFocused)
@@ -392,6 +402,12 @@ struct InlineWishComposer: View {
             guard shouldFocus else { return }
             focusRequestID &+= 1
             requestFocus = false
+        }
+        .onChange(of: quickIdea) { _, idea in
+            guard !idea.isEmpty else { return }
+            title = idea
+            focusRequestID &+= 1
+            quickIdea = ""
         }
         .onDrop(
             of: [

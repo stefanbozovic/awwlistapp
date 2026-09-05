@@ -17,5 +17,18 @@
 			</array>
 		</dict>
 	</array>
+	<key>UIApplicationShortcutItems</key>
+	<array>
+		<dict>
+			<key>UIApplicationShortcutItemIconSymbolName</key>
+			<string>square.and.pencil</string>
+			<key>UIApplicationShortcutItemSubtitle</key>
+			<string>Before you go, tell us what we could do better.</string>
+			<key>UIApplicationShortcutItemTitle</key>
+			<string>Leave a message</string>
+			<key>UIApplicationShortcutItemType</key>
+			<string>com.awwlist.feedback-before-leaving</string>
+		</dict>
+	</array>
 </dict>
 </plist>

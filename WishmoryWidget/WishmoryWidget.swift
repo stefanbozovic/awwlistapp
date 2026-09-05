@@ -10,7 +10,7 @@ struct AwwListWidgetProvider: AppIntentTimelineProvider {
         AwwListWidgetEntry(date: .now, people: displayedPeople(for: configuration))
     }
 
-    func timeline(for configuration: ConfigurationAppIntent) async -> Timeline<AwwListWidgetEntry> {
+    func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<AwwListWidgetEntry> {
         Timeline(
             entries: [AwwListWidgetEntry(date: .now, people: displayedPeople(for: configuration))],
             policy: .never
@@ -86,15 +86,16 @@ private struct AwwMediumWidgetContent: View {
             VStack(alignment: .leading, spacing: 10) {
                 AwwWidgetBrand()
 
-                Text("You remembered!")
-                    .font(.title2.weight(.bold))
+                Text("You remembered something special.")
+                    .font(.title3.weight(.bold))
                     .foregroundStyle(.primary)
-                    .lineLimit(1)
+                    .lineLimit(2)
                     .minimumScaleFactor(0.8)
 
-                Text("Exactly.")
+                Text("Keep their wish close.")
                     .font(.title3.weight(.medium))
                     .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
 
             Spacer(minLength: 0)
@@ -141,7 +142,7 @@ private struct AwwWidgetBrand: View {
             Image("AwwListLogo")
                 .resizable()
                 .scaledToFit()
-                .frame(width: 28, height: 28)
+                .frame(width: 34, height: 34)
 
             if !compact {
                 Text("AwwList")
@@ -253,7 +254,7 @@ struct AwwListWidget: Widget {
 private extension View {
     var widgetSurface: some View {
         self
-            .padding(6)
+            .padding(16)
             .containerBackground(AwwWidgetColor.background, for: .widget)
     }
 }
