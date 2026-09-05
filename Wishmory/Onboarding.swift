@@ -150,7 +150,7 @@ struct Onboarding: View {
     }
 }
 
-private extension String {
+extension String {
     var nonEmptyValue: String? {
         let cleaned = trimmingCharacters(in: .whitespacesAndNewlines)
         return cleaned.isEmpty ? nil : cleaned

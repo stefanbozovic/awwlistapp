@@ -9,7 +9,7 @@ import Combine
 import MetricKit
 import TipKit
 
-private func dismissKeyboard() {
+func dismissKeyboard() {
     UIApplication.shared.sendAction(
         #selector(UIResponder.resignFirstResponder),
         to: nil,
@@ -513,7 +513,7 @@ enum AwwShareBridge {
 
 
 
-private struct AwwUndoCard: View {
+struct AwwUndoCard: View {
     let message: String
     let undo: () -> Void
 

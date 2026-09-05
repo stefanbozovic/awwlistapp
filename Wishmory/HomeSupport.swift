@@ -32,7 +32,7 @@ struct CategorySheetRoute: Identifiable, Equatable {
     }
 }
 
-private struct UpcomingEvent: Identifiable {
+struct UpcomingEvent: Identifiable {
     let id: String
     let title: String
     let date: Date
@@ -93,7 +93,7 @@ private struct NextEventSummaryCard: View {
     }
 }
 
-private struct NextEventSummarySection: View {
+struct NextEventSummarySection: View {
     let events: [UpcomingEvent]
 
     var body: some View {
@@ -110,7 +110,7 @@ private struct NextEventSummarySection: View {
     }
 }
 
-private enum GiftingCalendar {
+enum GiftingCalendar {
     static func upcomingEvents(after date: Date, calendar: Calendar = .current) -> [UpcomingEvent] {
         let fixedEvents = [
             ("new-year", "New Year’s Day", 1, 1, "sparkles"),
@@ -370,7 +370,7 @@ private struct UpcomingEventsView: View {
     }
 }
 
-private enum AppFeedbackResponse: Equatable {
+enum AppFeedbackResponse: Equatable {
     case happy
     case unhappy
 }

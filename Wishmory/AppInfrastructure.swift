@@ -217,7 +217,7 @@ private enum AwwRefreshMessage {
     }
 }
 
-private struct AwwRefreshControlBranding: UIViewRepresentable {
+struct AwwRefreshControlBranding: UIViewRepresentable {
     func makeCoordinator() -> Coordinator {
         Coordinator()
     }

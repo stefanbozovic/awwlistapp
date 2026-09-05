@@ -63,6 +63,7 @@
 		60A8E6583041EB8200BE9B8E /* Exceptions for "Wishmory" folder in "Wishlistia" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				ContentView.swift.backup,
 				Info.plist,
 			);
 			target = 000000000000000100000000 /* Wishlistia */;
@@ -84,11 +85,22 @@
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
+/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+		60334ACD304CB022005FFAE9 /* Exceptions for "Wishmory" folder in "Compile Sources" phase from "Wishlistia" target */ = {
+			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
+			buildPhase = 000000000000000120000000 /* Sources */;
+			membershipExceptions = (
+				ContentView.swift.backup,
+			);
+		};
+/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		000000000000000000000010 /* Wishmory */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				60A8E6583041EB8200BE9B8E /* Exceptions for "Wishmory" folder in "Wishlistia" target */,
+				60334ACD304CB022005FFAE9 /* Exceptions for "Wishmory" folder in "Compile Sources" phase from "Wishlistia" target */,
 			);
 			path = Wishmory;
 			sourceTree = "<group>";

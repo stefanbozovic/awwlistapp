@@ -9,7 +9,7 @@ import Combine
 import MetricKit
 import TipKit
 
-private struct HomeCommunitySection: View {
+struct HomeCommunitySection: View {
     @Binding var feedbackResponse: AppFeedbackResponse?
 
     @Environment(\.openURL)
