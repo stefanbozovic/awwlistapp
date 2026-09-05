@@ -10,7 +10,7 @@ struct AwwListWidgetProvider: AppIntentTimelineProvider {
         AwwListWidgetEntry(date: .now, people: displayedPeople(for: configuration))
     }
 
-    func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<AwwListWidgetEntry> {
+    func timeline(for configuration: ConfigurationAppIntent) async -> Timeline<AwwListWidgetEntry> {
         Timeline(
             entries: [AwwListWidgetEntry(date: .now, people: displayedPeople(for: configuration))],
             policy: .never
@@ -55,23 +55,23 @@ private struct AwwSmallWidgetContent: View {
     let destination: URL?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 9) {
             HStack(alignment: .top) {
                 AwwWidgetBrand(compact: true)
 
                 Spacer(minLength: 4)
 
-                AwwAddWishButton(destination: destination, size: 42)
+                AwwAddWishButton(destination: destination, size: 46)
             }
 
             Text("Wishes come true")
-                .font(.headline.weight(.bold))
+                .font(.title3.weight(.bold))
                 .foregroundStyle(.primary)
                 .lineLimit(2)
                 .minimumScaleFactor(0.85)
 
             Text("Save a wish")
-                .font(.caption.weight(.medium))
+                .font(.subheadline.weight(.medium))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
@@ -83,25 +83,23 @@ private struct AwwMediumWidgetContent: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 9) {
+            VStack(alignment: .leading, spacing: 10) {
                 AwwWidgetBrand()
 
-                Spacer(minLength: 0)
-
                 Text("You remembered!")
-                    .font(.title3.weight(.bold))
+                    .font(.title2.weight(.bold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
 
                 Text("Exactly.")
-                    .font(.subheadline.weight(.medium))
+                    .font(.title3.weight(.medium))
                     .foregroundStyle(.secondary)
             }
 
             Spacer(minLength: 0)
 
-            AwwAddWishButton(destination: destination, size: 50)
+            AwwAddWishButton(destination: destination, size: 54)
         }
     }
 }
@@ -111,21 +109,21 @@ private struct AwwLargeWidgetContent: View {
     let destination: URL?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
                 AwwWidgetBrand()
 
                 Spacer()
 
-                AwwAddWishButton(destination: destination)
+                AwwAddWishButton(destination: destination, size: 50)
             }
 
             Text("Wishes come true")
-                .font(.title2.weight(.bold))
+                .font(.title.weight(.bold))
                 .foregroundStyle(.primary)
 
             Text("Save a wish before it disappears.")
-                .font(.subheadline)
+                .font(.title3)
                 .foregroundStyle(.secondary)
 
             AwwPeopleSummary(people: people)
@@ -247,6 +245,7 @@ struct AwwListWidget: Widget {
         }
         .configurationDisplayName("AwwList")
         .description("Save a wish before it disappears.")
+        .contentMarginsDisabled()
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }
@@ -254,7 +253,7 @@ struct AwwListWidget: Widget {
 private extension View {
     var widgetSurface: some View {
         self
-            .padding(12)
+            .padding(6)
             .containerBackground(AwwWidgetColor.background, for: .widget)
     }
 }
