@@ -41,11 +41,27 @@ struct UpcomingEvent: Identifiable {
     let person: Person?
 }
 
+private struct UpcomingEventIcon: View {
+    let event: UpcomingEvent
+    let size: CGFloat
+
+    var body: some View {
+        Image(systemName: event.symbol)
+            .font(.body.weight(.semibold))
+            .foregroundStyle(event.palette.tintColor)
+            .frame(width: size, height: size)
+            .background(event.palette.tintColor.opacity(0.12), in: Circle())
+            .accessibilityHidden(true)
+    }
+}
+
 private struct NextEventSummaryCard: View {
     let event: UpcomingEvent
 
     var body: some View {
         HStack(alignment: .center, spacing: 16) {
+            UpcomingEventIcon(event: event, size: 42)
+
             VStack(alignment: .leading, spacing: 8) {
                 ViewThatFits(in: .horizontal) {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -82,7 +98,7 @@ private struct NextEventSummaryCard: View {
                 .font(.caption.weight(.bold))
                 .foregroundStyle(event.palette.tintColor)
                 .frame(width: 36, height: 36)
-            .accessibilityHidden(true)
+                .accessibilityHidden(true)
         }
         .padding(18)
         .background(
@@ -218,7 +234,7 @@ private enum UpcomingEventPalette {
     }
 
     var cardFill: Color {
-        tintColor.opacity(0.2)
+        Color(uiColor: .secondarySystemBackground)
     }
 }
 
@@ -242,6 +258,18 @@ private extension UpcomingEvent {
         default:
             return .butter
         }
+    }
+
+    var categoryTag: String {
+        if id.hasPrefix("birthday-") {
+            return "birthday"
+        }
+
+        if id.hasPrefix("occasion-") {
+            return "occasion"
+        }
+
+        return id.replacingOccurrences(of: "-", with: "")
     }
 
     var daysUntilEvent: Int {
@@ -306,6 +334,8 @@ private struct UpcomingEventListCard: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
+            UpcomingEventIcon(event: event, size: 42)
+
             VStack(alignment: .leading, spacing: 7) {
                 Text(event.relativeDateDescription)
                     .font(.caption.weight(.semibold))
@@ -332,15 +362,11 @@ private struct UpcomingEventListCard: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            if let person = event.person {
-                Avatar(person: person, size: 42)
-            } else {
-                Image(systemName: event.symbol)
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(event.palette.tintColor)
-                    .frame(width: 42, height: 42)
-                    .background(event.palette.tintColor.opacity(0.12), in: Circle())
-            }
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(event.palette.tintColor)
+                .frame(width: 20, height: 42)
+                .accessibilityHidden(true)
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -359,7 +385,13 @@ private struct UpcomingEventsView: View {
         ScrollView {
             LazyVStack(spacing: 12) {
                 ForEach(events) { event in
-                    UpcomingEventListCard(event: event)
+                    NavigationLink {
+                        UpcomingEventDetailView(event: event)
+                    } label: {
+                        UpcomingEventListCard(event: event)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Shows planning options for this event")
                 }
             }
             .padding()
@@ -367,6 +399,217 @@ private struct UpcomingEventsView: View {
         .background(Color(.systemBackground))
         .navigationTitle("Next Events")
         .navigationBarTitleDisplayMode(.large)
+    }
+}
+
+private struct UpcomingEventDetailView: View {
+    let event: UpcomingEvent
+
+    @Query(sort: \Person.created) private var people: [Person]
+
+    @State private var selectedPersonIDs: Set<UUID> = []
+    @State private var isSelectingPeople = true
+    @State private var requestFocus = false
+    @State private var quickIdea = ""
+
+    private var activePeople: [Person] {
+        people.filter { $0.deletedAt == nil }
+    }
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 24) {
+                    UpcomingEventHeader(event: event)
+
+                    EventPeopleGrid(
+                        people: activePeople,
+                        selectedPersonIDs: $selectedPersonIDs,
+                        isSelecting: $isSelectingPeople,
+                        doneSelecting: dismissComposerFocus
+                    )
+                    .id("event-people")
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(24)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                dismissKeyboard()
+            }
+            .safeAreaInset(edge: .bottom) {
+                InlineWishComposer(
+                    people: activePeople,
+                    selectedPersonIDs: $selectedPersonIDs,
+                    requestFocus: $requestFocus,
+                    quickIdea: $quickIdea
+                ) { isFocused in
+                    guard isFocused else { return }
+
+                    withAnimation(.snappy) {
+                        proxy.scrollTo("event-people", anchor: .top)
+                    }
+                }
+                .frame(maxWidth: AwwAppLimits.composerMaxWidth)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+            }
+            .navigationTitle(event.title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Plan") {
+                        quickIdea = "#\(event.categoryTag) "
+                        requestFocus.toggle()
+                    }
+                }
+            }
+            .task(id: event.id) {
+                selectedPersonIDs = event.person.map { [$0.id] } ?? Set(activePeople.map(\.id))
+            }
+        }
+    }
+
+    private func dismissComposerFocus() {
+        dismissKeyboard()
+        isSelectingPeople = false
+    }
+}
+
+private struct UpcomingEventHeader: View {
+    let event: UpcomingEvent
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            UpcomingEventIcon(event: event, size: 64)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text(event.title)
+                    .font(.largeTitle.weight(.bold))
+
+                Text(event.date, format: .dateTime.month(.wide).day().year())
+                    .font(.headline)
+                    .foregroundStyle(event.palette.tintColor)
+            }
+
+            Text(event.reminder)
+                .font(.body)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+private struct EventPeopleGrid: View {
+    let people: [Person]
+    @Binding var selectedPersonIDs: Set<UUID>
+    @Binding var isSelecting: Bool
+    let doneSelecting: () -> Void
+
+    private let columns = [
+        GridItem(.adaptive(minimum: 92, maximum: 132), spacing: 12, alignment: .top)
+    ]
+
+    private var allSelected: Bool {
+        !people.isEmpty && selectedPersonIDs.count == people.count
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            EventPeopleHeader(
+                selectedCount: selectedPersonIDs.count,
+                allSelected: allSelected,
+                isSelecting: isSelecting,
+                toggleAll: toggleAll,
+                startSelecting: { isSelecting = true },
+                done: doneSelecting
+            )
+
+            if people.isEmpty {
+                ContentUnavailableView(
+                    "No people yet",
+                    systemImage: "person.2",
+                    description: Text("Add someone on Home before saving an idea for this event.")
+                )
+            } else {
+                LazyVGrid(columns: columns, spacing: 20) {
+                    ForEach(people) { person in
+                        if isSelecting {
+                            SelectablePersonTile(
+                                person: person,
+                                isSelected: selectedPersonIDs.contains(person.id),
+                                isSaveHighlighted: false,
+                                toggleSelection: { toggleSelection(for: person) },
+                                dismissKeyboard: {}
+                            )
+                            .accessibilityLabel(person.name)
+                            .accessibilityValue(
+                                selectedPersonIDs.contains(person.id) ? "Selected" : "Not selected"
+                            )
+                        } else {
+                            NavigationLink {
+                                Detail(person: person)
+                            } label: {
+                                PersonTile(person: person)
+                            }
+                            .tint(.primary)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func toggleSelection(for person: Person) {
+        if selectedPersonIDs.contains(person.id) {
+            selectedPersonIDs.remove(person.id)
+        } else {
+            selectedPersonIDs.insert(person.id)
+        }
+        AwwHaptics.selection()
+    }
+
+    private func toggleAll() {
+        selectedPersonIDs = allSelected ? [] : Set(people.map(\.id))
+        AwwHaptics.selection()
+    }
+}
+
+private struct EventPeopleHeader: View {
+    let selectedCount: Int
+    let allSelected: Bool
+    let isSelecting: Bool
+    let toggleAll: () -> Void
+    let startSelecting: () -> Void
+    let done: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Text("For who?")
+                .font(.title3.weight(.bold))
+
+            if isSelecting {
+                Text("\(selectedCount)")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 9)
+                    .frame(height: 26)
+                    .background(Color.primary.opacity(0.065), in: Capsule())
+            }
+
+            Spacer(minLength: 8)
+
+            if isSelecting {
+                Button(allSelected ? "Deselect" : "Select", action: toggleAll)
+                Button("Done", action: done)
+            } else {
+                Button("Select", action: startSelecting)
+            }
+        }
+        .font(.subheadline.weight(.semibold))
+        .buttonStyle(.plain)
+        .foregroundStyle(.red)
+        .animation(.snappy, value: isSelecting)
     }
 }
 

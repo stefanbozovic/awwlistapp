@@ -221,7 +221,7 @@ struct InlineWishComposer: View {
     @State private var title = ""
     @State private var category = ""
     @State private var status = "Would love"
-    @State private var cardColor = WishCardPalette.defaultID
+    @State private var cardColor = WishCardPalette.randomID
     @State private var imageData: Data?
     @State private var imageAttachments: [Data] = []
     @State private var fileAttachments: [ImportedAttachment] = []
@@ -797,7 +797,7 @@ struct InlineWishComposer: View {
             title = ""
             category = ""
             status = "Would love"
-            cardColor = WishCardPalette.defaultID
+            cardColor = WishCardPalette.randomID
             imageData = nil
             imageAttachments.removeAll()
             fileAttachments.removeAll()
@@ -3649,6 +3649,10 @@ enum WishCardPalette: String, CaseIterable, Identifiable {
     case neutralGray
 
     static let defaultID = Self.warmBlush.rawValue
+
+    static var randomID: String {
+        allCases.randomElement()?.id ?? defaultID
+    }
 
     var id: String { rawValue }
 

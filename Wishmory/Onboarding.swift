@@ -22,8 +22,6 @@ struct Onboarding: View {
     @State private var emoji = Onboarding.suggestedEmoji
     @State private var profileImage: Data?
     @State private var selectedPhoto: PhotosPickerItem?
-    @State private var birthday = Date.now
-    @State private var knowsBirthday = true
 
     private static let emojiSuggestions = [
         "🌼", "🪩", "🍓", "🦋",
@@ -51,20 +49,12 @@ struct Onboarding: View {
                         emoji: $emoji,
                         profileImage: $profileImage,
                         selectedPhoto: $selectedPhoto,
-                        emojiSuggestions: Self.emojiSuggestions,
                         suggestEmoji: suggestEmoji,
                         continueAction: advance
                     )
 
-                case 2:
-                    OnboardingBirthdayPage(
-                        birthday: $birthday,
-                        knowsBirthday: $knowsBirthday,
-                        finishAction: advance
-                    )
-
                 default:
-                    OnboardingNotificationsPage(finishAction: advance)
+                    OnboardingNotificationsPage(finishAction: completeOnboarding)
                 }
             }
             .navigationTitle("")
@@ -102,34 +92,23 @@ struct Onboarding: View {
     }
 
     private func advance() {
-        if page == 2 {
-            Task {
-                let status = await NotificationScheduler.authorizationStatus()
+        Task {
+            let status = await NotificationScheduler.authorizationStatus()
 
-                if status == .authorized {
-                    completeOnboarding()
-                } else {
-                    withAnimation(.snappy(duration: 0.28)) {
-                        page = 3
-                    }
+            switch status {
+            case .authorized, .provisional, .ephemeral:
+                completeOnboarding()
+
+            default:
+                withAnimation(.snappy(duration: 0.28)) {
+                    page += 1
                 }
             }
-        } else if page < 3 {
-            withAnimation(.snappy(duration: 0.28)) {
-                page += 1
-            }
-        } else {
-            completeOnboarding()
         }
     }
 
     private func completeOnboarding() {
-        finish(
-            trimmedName,
-            emoji,
-            profileImage,
-            knowsBirthday ? birthday : nil
-        )
+        finish(trimmedName, emoji, profileImage, nil)
     }
 
     private func goBack() {
@@ -260,7 +239,7 @@ struct OnboardingNotificationsPage: View {
                     Button("Enable reminders", systemImage: "bell.fill") {
                         Task {
                             _ = await NotificationScheduler.requestAuthorization()
-                            authorizationStatus = await NotificationScheduler.authorizationStatus()
+                            finishAction()
                         }
                     }
                     .buttonStyle(.glassProminent)
@@ -292,11 +271,11 @@ struct OnboardingWelcomePage: View {
         OnboardingCenteredShell {
             VStack(spacing: 26) {
                 VStack(spacing: 14) {
-                    OnboardingBrandMark()
-                        .frame(width: 110, height: 110)
-
-                    Text("AwwList")
-                        .font(.system(size: 42, weight: .bold, design: .rounded))
+                    Image("AwwListWoodmark")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 260, height: 78)
+                        .accessibilityLabel("AwwList")
 
                     Text("Keep wishes, gift ideas, and the people they belong to together before the thought disappears.")
                         .font(.body)
@@ -338,19 +317,6 @@ struct OnboardingWelcomePage: View {
                     .foregroundStyle(.secondary)
             }
         }
-    }
-}
-
-private struct OnboardingBrandMark: View {
-    var body: some View {
-        Image("OnboardingLogo")
-            .resizable()
-            .scaledToFit()
-            .padding(12)
-            .background(in: Circle())
-            .backgroundStyle(.background)
-            .shadow(color: .red.opacity(0.18), radius: 14, y: 8)
-            .accessibilityHidden(true)
     }
 }
 
@@ -579,11 +545,12 @@ struct OnboardingProfilePage: View {
     @Binding var profileImage: Data?
     @Binding var selectedPhoto: PhotosPickerItem?
 
-    let emojiSuggestions: [String]
     let suggestEmoji: () -> Void
     let continueAction: () -> Void
 
     @State private var showingPhotoPicker = false
+    @State private var isEmojiPickerPresented = false
+    @State private var hasCustomEmoji = true
     @FocusState private var isNameFocused: Bool
 
     var body: some View {
@@ -601,13 +568,9 @@ struct OnboardingProfilePage: View {
                 }
 
                 Menu {
-                    Menu("Choose emoji", systemImage: "face.smiling") {
-                        ForEach(emojiSuggestions, id: \.self) { option in
-                            Button(option) {
-                                emoji = option
-                                profileImage = nil
-                            }
-                        }
+                    Button("Choose emoji", systemImage: "face.smiling") {
+                        profileImage = nil
+                        isEmojiPickerPresented = true
                     }
 
                     Button("Suggest another emoji", systemImage: "shuffle") {
@@ -631,6 +594,12 @@ struct OnboardingProfilePage: View {
                     selection: $selectedPhoto,
                     matching: .images
                 )
+                .sheet(isPresented: $isEmojiPickerPresented) {
+                    EmojiPicker(
+                        emoji: $emoji,
+                        hasCustomEmoji: $hasCustomEmoji
+                    )
+                }
 
                 TextField("Your name", text: $name)
                     .font(.title3.weight(.semibold))
